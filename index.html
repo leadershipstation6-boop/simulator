@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>환자경험카드 × ESOEO 상담 시뮬레이터 v2</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07091a;--sf:#0d1226;--sf2:#131a30;--sf3:#1a2240;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.13);
+  --txt:#dde4f0;--muted:#556080;--dim:#8494b0;
+  --gold:#f5a623;--gold-bg:rgba(245,166,35,0.1);
+  --green:#10b981;--yellow:#f59e0b;--red:#ef4444;
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+.serif{font-family:'DM Serif Display',serif}
+.mono{font-family:'JetBrains Mono',monospace}
+#app{min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px;width:100%}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s;border:none;outline:none}
+.btn-gold{background:var(--gold);color:#000}.btn-gold:hover{background:#fbbf24;transform:translateY(-1px);box-shadow:0 8px 24px rgba(245,166,35,.3)}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--dim)}.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444}.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-lg{padding:16px 36px;font-size:15px;border-radius:14px}
+.btn-sm{padding:8px 16px;font-size:12px;border-radius:10px}
+
+/* ── TAG ── */
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:8px;font-size:10px;font-weight:900;letter-spacing:.05em}
+
+/* ── 3D CARD FLIP ── */
+.deck-wrap{perspective:1200px;width:144px;height:208px;cursor:pointer;flex-shrink:0}
+.deck-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.4,0,.2,1)}
+.deck-inner.flipped{transform:rotateY(180deg)}
+.deck-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px}
+.deck-back{background:var(--sf2);border:1px solid var(--border2);background-image:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(255,255,255,.018) 10px,rgba(255,255,255,.018) 20px)}
+.deck-front{transform:rotateY(180deg);border:1px solid var(--border);text-align:center}
+
+/* ── ESOEO STEP BAR ── */
+.e-bar{display:flex;align-items:center;width:100%}
+.e-step{display:flex;flex-direction:column;align-items:center;flex:1;cursor:default}
+.e-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:17px;border:2px solid var(--border2);color:var(--muted);background:var(--sf);transition:all .3s}
+.e-step.active .e-circle{border-color:var(--sc);color:var(--sc);box-shadow:0 0 16px color-mix(in srgb,var(--sc) 35%,transparent)}
+.e-step.done .e-circle{background:var(--sc);border-color:var(--sc);color:#000;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:900}
+.e-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px;transition:all .3s}
+.e-step.active .e-label,.e-step.done .e-label{color:var(--sc)}
+.e-line{flex:1;height:2px;background:var(--border);margin-bottom:20px;transition:background .4s}
+.e-line.done{background:var(--lc)}
+
+/* ── TRUST METER ── */
+#trust-wrap{position:relative;height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;transition:all .3s}
+#trust-fill{height:100%;border-radius:3px;transition:width .6s ease, background .4s}
+#trust-label{font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}
+
+/* ── SUB-SCORE BARS ── */
+.sub-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.sub-bar-track{flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden}
+.sub-bar-fill{height:100%;border-radius:2px;transition:width .7s ease}
+
+/* ── CHAT ── */
+.chat-area{display:flex;flex-direction:column;gap:10px;max-height:360px;overflow-y:auto;padding:16px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.chat-area::-webkit-scrollbar{width:3px}.chat-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.msg{display:flex;gap:10px;animation:msgIn .3s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.patient{flex-direction:row}.msg.staff{flex-direction:row-reverse}
+.msg-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--sf3)}
+.bubble{max-width:74%;padding:11px 15px;border-radius:16px;font-size:13px;line-height:1.75}
+.msg.patient .bubble{background:var(--sf2);border:1px solid var(--border);border-top-left-radius:4px}
+.msg.staff .bubble{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.22);border-top-right-radius:4px}
+.msg.system .bubble{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);color:#fca5a5;font-size:12px;font-style:italic;max-width:100%;border-radius:10px}
+
+/* ── OPTION BUTTONS ── */
+.opt-btn{width:100%;background:var(--sf);border:1px solid var(--border);border-radius:14px;padding:14px 18px;text-align:left;font-size:13px;line-height:1.7;color:var(--txt);cursor:pointer;transition:all .2s;font-family:'Noto Sans KR',sans-serif;display:block;position:relative}
+.opt-btn:hover:not([disabled]){border-color:var(--gold);background:var(--gold-bg);transform:translateX(3px)}
+.opt-btn[disabled]{opacity:.5;cursor:not-allowed;pointer-events:none}
+.opt-btn.reveal-best{border-color:var(--green)!important;background:rgba(16,185,129,.07)!important}
+.opt-btn.reveal-ok{border-color:var(--yellow)!important;background:rgba(245,158,11,.07)!important}
+.opt-btn.reveal-poor{border-color:var(--red)!important;background:rgba(239,68,68,.07)!important}
+.opt-badge{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:900;letter-spacing:.1em;padding:2px 7px;border-radius:6px}
+
+/* ── CHALLENGE BANNER ── */
+.challenge-banner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:12px 16px;display:flex;gap:10px;align-items:center;animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ── EARLY TERMINATE OVERLAY ── */
+#terminate-overlay{position:fixed;inset:0;background:rgba(7,9,26,.92);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s;backdrop-filter:blur(8px)}
+#terminate-overlay.show{opacity:1;pointer-events:all}
+
+/* ── LOADING ── */
+.dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--gold);margin:0 2px;animation:dp 1.2s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes dp{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* ── MISC ── */
+.panel{background:var(--sf);border:1px solid var(--border);border-radius:20px;padding:22px}
+.phase{animation:pIn .35s ease}
+@keyframes pIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.1;pointer-events:none}
+.score-bar{height:5px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-top:5px}
+.score-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.persona-btn{background:var(--sf);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:all .2s;width:100%;font-family:'Noto Sans KR',sans-serif}
+.persona-btn:hover{border-color:var(--gold);background:var(--gold-bg);transform:translateY(-2px)}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--sf2);border:1px solid var(--border2);border-radius:12px;padding:10px 18px;font-size:12px;font-weight:600;opacity:0;transform:translateY(6px);transition:all .3s;z-index:998;pointer-events:none;max-width:300px}
+#toast.show{opacity:1;transform:translateY(0)}
+.no-scrollbar::-webkit-scrollbar{display:none}
+@media(max-width:600px){.deck-wrap{width:118px;height:170px}.e-circle{width:30px;height:30px;font-size:14px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<!-- Early Terminate Overlay -->
+<div id="terminate-overlay">
+  <div style="background:var(--sf);border:1px solid rgba(239,68,68,.3);border-radius:24px;padding:40px;max-width:440px;text-align:center;margin:20px">
+    <div style="font-size:52px;margin-bottom:16px">🚪</div>
+    <div id="term-title" style="font-size:22px;font-weight:900;margin-bottom:12px;color:#fca5a5"></div>
+    <p id="term-msg" style="font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:28px"></p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-gold" onclick="doTerminate()">결과 확인하기</button>
+      <button class="btn btn-ghost" onclick="closeOverlay()">상담 계속하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DATABASE
+// ═══════════════════════════════════════════════════
+const DB = {
+  VALUES:[
+    {id:'V01',title:'안전성',desc:'부작용 없이 안전하게 치료받고 싶다',icon:'🛡️'},
+    {id:'V02',title:'신뢰',desc:'믿을 수 있는 의료진에게 치료받고 싶다',icon:'🤝'},
+    {id:'V03',title:'경제성',desc:'합리적인 비용으로 좋은 치료를 받고 싶다',icon:'💎'},
+    {id:'V04',title:'편의성',desc:'빠르고 간편하게 치료받고 싶다',icon:'⚡'},
+    {id:'V05',title:'품위',desc:'존중받으며 치료받고 싶다',icon:'👑'},
+    {id:'V06',title:'정보충분성',desc:'충분한 설명을 듣고 싶다',icon:'📖'},
+    {id:'V07',title:'관계',desc:'의료진과 좋은 관계를 원한다',icon:'💛'},
+    {id:'V08',title:'자율성',desc:'내 치료를 내가 결정하고 싶다',icon:'🎯'},
+    {id:'V09',title:'연속성',desc:'지속적인 관리를 받고 싶다',icon:'🔄'},
+    {id:'V10',title:'회복',desc:'빠르게 일상으로 돌아가고 싶다',icon:'🌱'},
+    {id:'V11',title:'전문성',desc:'최고 수준의 전문가에게 치료받고 싶다',icon:'⭐'},
+    {id:'V12',title:'투명성',desc:'치료 과정을 명확하게 알고 싶다',icon:'🔍'},
+  ],
+  EMOTION:[
+    {id:'EM01',title:'불안',desc:'치료 결과에 대한 걱정과 두려움',icon:'😰'},
+    {id:'EM02',title:'두려움',desc:'통증과 수술에 대한 공포',icon:'😨'},
+    {id:'EM03',title:'혼란',desc:'의학 정보 과부하로 인한 혼란',icon:'😵'},
+    {id:'EM04',title:'기대',desc:'치료 후 변화에 대한 희망',icon:'✨'},
+    {id:'EM05',title:'의심',desc:'진단 결과에 대한 불신',icon:'🤨'},
+    {id:'EM06',title:'무기력',desc:'오랜 치료에 지치고 포기하고 싶은 심정',icon:'😔'},
+    {id:'EM07',title:'분노',desc:'예상치 못한 상황에 대한 화',icon:'😤'},
+    {id:'EM08',title:'안도',desc:'정확한 진단 후 느끼는 편안함',icon:'😌'},
+    {id:'EM09',title:'망설임',desc:'치료 결정 앞의 주저함',icon:'🤔'},
+    {id:'EM10',title:'고마움',desc:'친절한 대응에 대한 감사',icon:'🥺'},
+    {id:'EM11',title:'불신',desc:'병원 시스템 전반에 대한 불신',icon:'😒'},
+    {id:'EM12',title:'당혹감',desc:'예상과 다른 상황에 당혹스러움',icon:'😳'},
+  ],
+  MOT:[
+    {id:'M01',title:'첫 내원',desc:'병원 문을 열고 들어서는 결정적 순간',icon:'🚪'},
+    {id:'M02',title:'접수 대기',desc:'이름을 부를 때까지 기다리는 시간',icon:'⏳'},
+    {id:'M03',title:'진단 설명',desc:'검사 결과와 진단을 듣는 순간',icon:'🔬'},
+    {id:'M04',title:'치료 계획',desc:'치료 방향과 기간을 설명받는 순간',icon:'📋'},
+    {id:'M05',title:'비용 안내',desc:'수납 금액을 확인하는 결정적 순간',icon:'💳'},
+    {id:'M06',title:'예약 확정',desc:'다음 방문 날짜를 약속하는 순간',icon:'📅'},
+    {id:'M07',title:'전화 상담',desc:'전화로 처음 문의하는 순간',icon:'📞'},
+    {id:'M08',title:'퇴원',desc:'치료를 마치고 병원을 나서는 순간',icon:'🚶'},
+    {id:'M09',title:'사후 관리',desc:'치료 후 경과를 확인하는 순간',icon:'🩺'},
+    {id:'M10',title:'재내원 권유',desc:'정기 검진을 권유받는 순간',icon:'🔔'},
+    {id:'M11',title:'응급 방문',desc:'예상치 못한 통증으로 갑자기 방문',icon:'🚨'},
+    {id:'M12',title:'치료 중 케어',desc:'치료 진행 중 불안을 느끼는 순간',icon:'💉'},
+  ],
+  ACTION:[
+    {id:'A01',title:'정보 탐색',desc:'인터넷으로 병원과 치료를 검색한다',icon:'🔎'},
+    {id:'A02',title:'비교 검토',desc:'다른 병원과 비용·후기를 비교한다',icon:'⚖️'},
+    {id:'A03',title:'직접 질문',desc:'모르는 것을 직접 물어본다',icon:'❓'},
+    {id:'A04',title:'치료 회피',desc:'불안해서 치료를 미루거나 포기한다',icon:'🚫'},
+    {id:'A05',title:'동반 내원',desc:'가족이나 지인을 데리고 온다',icon:'👨‍👩‍👧'},
+    {id:'A06',title:'기록·메모',desc:'설명을 메모하거나 녹음한다',icon:'✏️'},
+    {id:'A07',title:'반복 확인',desc:'같은 질문을 여러 번 반복한다',icon:'🔁'},
+    {id:'A08',title:'후기 공유',desc:'지인에게 병원을 추천하거나 비추천한다',icon:'📢'},
+    {id:'A09',title:'진료 이탈',desc:'치료 중 다른 병원으로 옮긴다',icon:'🏃'},
+    {id:'A10',title:'장기부재 복귀',desc:'오랜만에 다시 내원한다',icon:'↩️'},
+    {id:'A11',title:'침묵·회피',desc:'불만이 있어도 말하지 않는다',icon:'🤐'},
+    {id:'A12',title:'즉각 결정',desc:'설명 후 바로 치료를 결정한다',icon:'✅'},
+  ]
+};
+const CTYPE={
+  VALUES:{label:'VALUES',ko:'가치',c:'#a855f7',bg:'rgba(168,85,247,0.1)'},
+  EMOTION:{label:'EMOTION',ko:'감정',c:'#06b6d4',bg:'rgba(6,182,212,0.1)'},
+  MOT:{label:'MOT',ko:'결정순간',c:'#84cc16',bg:'rgba(132,204,22,0.1)'},
+  ACTION:{label:'ACTION',ko:'행동',c:'#f97316',bg:'rgba(249,115,22,0.1)'}
+};
+const PERSONAS=[
+  {id:'P1',name:'김미란',age:'54세',gender:'여',type:'임플란트 첫 상담',bg:'주부. 자녀 결혼 전에 앞니 임플란트를 고치고 싶지만 통증과 비용이 두렵다.',av:'👩‍🦳',challenge:'갑자기 "남편한테 먼저 물어봐야 할 것 같아요"라며 결정을 미루려 한다.'},
+  {id:'P2',name:'이준혁',age:'28세',gender:'남',type:'교정 망설임',bg:'IT 스타트업 직장인. 교정이 필요하지만 비용 부담과 2년이라는 기간이 망설여진다.',av:'👨',challenge:'"유튜브에서 이 병원 후기 별로던데요"라며 갑자기 경쟁 병원 정보를 꺼낸다.'},
+  {id:'P3',name:'박성호',age:'45세',gender:'남',type:'불만 전화 클레임',bg:'자영업자. 약속한 시간에 치료가 진행되지 않아 화가 많이 나 있는 상태.',av:'👨‍💼',challenge:'"지금 당장 원장 바꿔요!"라며 갑자기 담당 변경을 강하게 요구한다.'},
+  {id:'P4',name:'최수진',age:'35세',gender:'여',type:'진료비 저항',bg:'맞벌이 주부. 상담 전 예상했던 비용보다 훨씬 높은 견적에 당황하고 있다.',av:'👩',challenge:'"옆 병원에서는 30만원이나 더 싸게 해준다고 했어요"라며 비교 견적서를 꺼낸다.'},
+  {id:'P5',name:'정우성',age:'62세',gender:'남',type:'치료중단 후 재내원',bg:'은퇴 후 생활. 2년 전 치료를 도중에 포기했다가 불편함이 심해져 다시 방문했다.',av:'👴',challenge:'갑자기 "그때 여기서 잘못한 거 아닌가요?"라며 과거 치료에 대한 책임을 묻는다.'},
+  {id:'P6',name:'한지영',age:'32세',gender:'여',type:'응급 방문',bg:'마케터. 갑작스러운 극심한 통증으로 예약 없이 긴급 방문. 극도로 예민한 상태.',av:'👩‍💻',challenge:'"잠깐만요, 지금 너무 아파서 못 들을 것 같아요"라며 갑자기 설명 도중 눈물을 보인다.'},
+];
+const STEPS=[
+  {key:'E1',lbl:'E',full:'Emotion',ko:'감정 공명',desc:'환자의 감정 상태를 인식하고 공감하는 단계',c:'#ec4899'},
+  {key:'S', lbl:'S',full:'Situation',ko:'상황 파악',desc:'현재 상황을 환자의 언어로 명확하게 정의하는 단계',c:'#f97316'},
+  {key:'O1',lbl:'O',full:'Outcome',ko:'결과 형성',desc:'치료 후 기대되는 가치와 결과를 시각화하는 단계',c:'#eab308'},
+  {key:'E2',lbl:'E',full:'Engage',ko:'참여 유도',desc:'환자가 주도적으로 결정에 참여하도록 안내하는 단계',c:'#10b981'},
+  {key:'O2',lbl:'O',full:'Operation',ko:'실행 확약',desc:'다음 단계의 실행을 구체적으로 확약하는 단계',c:'#6366f1'},
+];
+const SUB_SCORES=['empathy','logic','clarity','timing'];
+const SUB_LABELS={empathy:'공감 지수',logic:'설득 논리',clarity:'전달 명확성',timing:'타이밍 감각'};
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+const S={
+  phase:'intro',
+  persona:null,
+  mode:'normal', // 'normal' | 'challenge'
+  cards:{VALUES:null,EMOTION:null,MOT:null,ACTION:null},
+  flipped:{VALUES:false,EMOTION:false,MOT:false,ACTION:false},
+  scenario:null,
+  step:0,
+  convo:[],
+  opts:[],
+  hint:'',
+  scores:[],         // [{score, sub:{empathy,logic,clarity,timing}, feedback}]
+  trustHP:100,       // 0-100 trust health
+  waiting:false,
+  loading:false,
+  final:null,
+  challenged:false,  // whether challenge event fired this run
+  terminated:false,  // early termination flag
+  revealAfterPick:false, // show quality labels after pick
+};
+
+// ═══════════════════════════════════════════════════
+//  SAFE JSON PARSER (5-layer defense)
+// ═══════════════════════════════════════════════════
+function safeJSON(raw){
+  // L1: strip fences & trim
+  let s=raw.replace(/```json\s*/gi,'').replace(/```\s*/gi,'').trim();
+  // L2: extract first complete {...} block
+  let depth=0,start=-1,end=-1;
+  for(let i=0;i<s.length;i++){
+    if(s[i]==='{'){if(depth===0)start=i;depth++;}
+    else if(s[i]==='}'){depth--;if(depth===0){end=i;break;}}
+  }
+  if(start>=0&&end>start) s=s.slice(start,end+1);
+  // L3: direct parse
+  try{return JSON.parse(s);}catch(_){}
+  // L4: char-by-char escape control chars inside strings
+  try{
+    let out='',inStr=false,esc=false;
+    for(let i=0;i<s.length;i++){
+      const c=s[i];
+      if(esc){out+=c;esc=false;continue;}
+      if(c==='\\'){out+=c;esc=true;continue;}
+      if(c==='"'){inStr=!inStr;out+=c;continue;}
+      if(inStr){
+        if(c==='\n'){out+='\\n';continue;}
+        if(c==='\r'){out+='\\r';continue;}
+        if(c==='\t'){out+='\\t';continue;}
+        if(c.charCodeAt(0)<32){continue;} // drop other control chars
+      }
+      out+=c;
+    }
+    return JSON.parse(out);
+  }catch(_){}
+  // L5: nuke all control chars inside quoted strings via regex
+  try{
+    const cleaned=s.replace(/"(?:[^"\\]|\\.)*"/g,m=>
+      m.replace(/[\x00-\x1f\x7f]/g,c=>{
+        if(c==='\n')return'\\n';
+        if(c==='\r')return'\\r';
+        if(c==='\t')return'\\t';
+        return'';
+      })
+    );
+    return JSON.parse(cleaned);
+  }catch(e){throw new Error('JSON parse failed after 5 attempts. Raw snippet: '+s.slice(0,120));}
+}
+
+// ═══════════════════════════════════════════════════
+//  CLAUDE API
+// ═══════════════════════════════════════════════════
+const SYS_BASE=`You are an expert hospital patient experience simulation AI.
+CRITICAL OUTPUT RULES — violating any rule will break the application:
+1. Output ONLY the JSON object. Zero preamble, zero explanation, zero markdown.
+2. Every string value MUST be a single line — no literal newline characters inside strings.
+3. Do NOT use double-quotes inside string values — use single-quotes or rephrase.
+4. Start your response with { and end with }. Nothing before or after.`;
+
+async function callClaude(user,extraSys='',tokens=900){
+  const system=SYS_BASE+(extraSys?'\n'+extraSys:'');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:tokens,
+      system,
+      messages:[{role:'user',content:user}]
+    })
+  });
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  return d.content?.[0]?.text||'{}';
+}
+
+async function withRetry(fn,tries=3,delay=1000){
+  for(let i=0;i<tries;i++){
+    try{return await fn();}
+    catch(e){
+      console.warn(`Attempt ${i+1} failed:`,e.message);
+      if(i<tries-1) await new Promise(r=>setTimeout(r,delay));
+      else throw e;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  AI GEN FUNCTIONS
+// ═══════════════════════════════════════════════════
+async function genScenario(){
+  const {persona,cards,mode}=S;
+  const challengeNote=mode==='challenge'?` Include a hidden trigger point where the patient will suddenly react with: "${persona.challenge}"`:' ';
+  const usr=`Create a Korean hospital consultation scenario.
+Persona: ${persona.name} (${persona.age} ${persona.gender}) | Type: ${persona.type} | Background: ${persona.bg}
+Active cards: VALUES=${cards.VALUES.title}(${cards.VALUES.desc}) | EMOTION=${cards.EMOTION.title}(${cards.EMOTION.desc}) | MOT=${cards.MOT.title}(${cards.MOT.desc}) | ACTION=${cards.ACTION.title}(${cards.ACTION.desc})${challengeNote}
+Return this exact JSON structure with Korean values:
+{"scenario":"3-sentence situation description","patient_opening":"patient first words in colloquial Korean 1-2 sentences","tension":"core conflict in 1 sentence","hidden_need":"real underlying need in 1 sentence","trust_initial":${cards.EMOTION.id.startsWith('EM0')&&parseInt(cards.EMOTION.id.slice(2))<=5?55:75}}`;
+  return safeJSON(await callClaude(usr,'',600));
+}
+
+async function genOpts(stepIdx){
+  const {persona,cards,scenario,convo,mode,challenged}=S;
+  const step=STEPS[stepIdx];
+  const hist=convo.slice(-8).map(m=>`[${m.r==='patient'?'P':'S'}]: ${m.t.slice(0,80)}`).join(' | ');
+  const challengeInstr=(mode==='challenge'&&!challenged&&stepIdx===2)?
+    ` IMPORTANT: In patient_prompt, include the surprise challenge event: "${persona.challenge}" — make it feel natural.`:'';
+  const usr=`ESOEO Step: ${step.full} (${step.ko}) — ${step.desc}
+Patient: ${persona.name} | Core emotion: ${cards.EMOTION.title} | Hidden need: ${scenario.hidden_need}
+Recent dialogue: ${hist||'(start of consultation)'}${challengeInstr}
+Provide 3 staff response options of DIFFERENT quality. Randomly shuffle which ID gets which quality — do NOT always put best first.
+Return this exact JSON:
+{"patient_prompt":"current patient utterance in colloquial Korean 1-2 sentences","options":[{"id":"A","text":"staff response in Korean 1-2 sentences","quality":"best"},{"id":"B","text":"staff response in Korean 1-2 sentences","quality":"ok"},{"id":"C","text":"staff response in Korean 1-2 sentences","quality":"poor"}],"hint":"key insight for this ESOEO step in Korean 1 sentence"}
+Shuffle the options array so quality order is unpredictable.`;
+  const raw=await callClaude(usr,'',1000);
+  const parsed=safeJSON(raw);
+  // ensure 3 options exist
+  if(!parsed.options||parsed.options.length<3) throw new Error('Missing options');
+  // client-side shuffle for extra unpredictability
+  parsed.options.sort(()=>Math.random()-0.5);
+  return parsed;
+}
+
+async function genReaction(step,chosenText,quality){
+  const {persona,cards}=S;
+  const baseScore=quality==='best'?Math.floor(Math.random()*9)+88:quality==='ok'?Math.floor(Math.random()*14)+60:Math.floor(Math.random()*18)+22;
+  const subVariance=()=>Math.floor(Math.random()*12)-4;
+  const sub={
+    empathy:Math.max(10,Math.min(100,baseScore+subVariance())),
+    logic:Math.max(10,Math.min(100,baseScore+subVariance())),
+    clarity:Math.max(10,Math.min(100,baseScore+subVariance())),
+    timing:Math.max(10,Math.min(100,baseScore+subVariance())),
+  };
+  const trustDelta=quality==='best'?Math.floor(Math.random()*8)+5:quality==='ok'?Math.floor(Math.random()*4)-1:-(Math.floor(Math.random()*18)+12);
+  const usr=`Hospital consultation step: ${step.full} (${step.ko})
+Patient: ${persona.name} | Emotion: ${cards.EMOTION.title} | Response quality: ${quality}
+Staff said: "${chosenText.replace(/"/g,"'").slice(0,120)}"
+Return this exact JSON with Korean values:
+{"reaction":"patient reaction in colloquial Korean 1-2 sentences","feedback":"specific ESOEO coaching feedback in Korean 1-2 sentences. If quality is poor mention what the correct approach should be.","trust_delta":${trustDelta}}`;
+  const raw=await callClaude(usr,'',400);
+  const parsed=safeJSON(raw);
+  return {reaction:parsed.reaction,feedback:parsed.feedback,score:baseScore,sub,trust_delta:trustDelta};
+}
+
+async function genFinal(){
+  const {scores,persona,trustHP,terminated}=S;
+  const avg=Math.round(scores.reduce((a,b)=>a+b.score,0)/Math.max(scores.length,1));
+  const grade=terminated?'F':avg>=90?'S':avg>=80?'A':avg>=65?'B':avg>=50?'C':'D';
+  const subAvg={
+    empathy:Math.round(scores.reduce((a,b)=>a+(b.sub?.empathy||avg),0)/Math.max(scores.length,1)),
+    logic:Math.round(scores.reduce((a,b)=>a+(b.sub?.logic||avg),0)/Math.max(scores.length,1)),
+    clarity:Math.round(scores.reduce((a,b)=>a+(b.sub?.clarity||avg),0)/Math.max(scores.length,1)),
+    timing:Math.round(scores.reduce((a,b)=>a+(b.sub?.timing||avg),0)/Math.max(scores.length,1)),
+  };
+  const stepsDetail=scores.map((sc,i)=>`${STEPS[i]?.full||'?'}:${sc.score}pts`).join(', ');
+  const usr=`ESOEO consultation evaluation:
+Patient: ${persona.name} (${persona.type}) | Avg score: ${avg} | Grade: ${grade} | Final trust: ${trustHP}% | ${terminated?'EARLY TERMINATION — patient left':'Completed'}
+Steps: ${stepsDetail}
+Return this exact JSON:
+{"grade":"${grade}","total_score":${avg},"sub_scores":{"empathy":${subAvg.empathy},"logic":${subAvg.logic},"clarity":${subAvg.clarity},"timing":${subAvg.timing}},"summary":"2-3 sentence overall evaluation in Korean","strengths":["strength 1 in Korean","strength 2 in Korean","strength 3 in Korean"],"improvements":["improvement 1 in Korean","improvement 2 in Korean","improvement 3 in Korean"],"architect_comment":"master-level insight comment in Korean 1-2 sentences"}`;
+  return safeJSON(await callClaude(usr,'',750));
+}
+
+// ═══════════════════════════════════════════════════
+//  TRUST METER HELPERS
+// ═══════════════════════════════════════════════════
+function trustColor(v){return v>=70?'#10b981':v>=40?'#f59e0b':'#ef4444'}
+function trustLabel(v){return v>=70?'신뢰 양호':'TRUST '+(v>=40?'주의':'위험')}
+function applyTrustDelta(delta){
+  S.trustHP=Math.max(0,Math.min(100,S.trustHP+(delta||0)));
+  // if trust collapses, trigger overlay
+  if(S.trustHP<=15&&!S.terminated&&S.phase==='simulate'){
+    showTerminateOverlay('신뢰가 무너졌습니다','환자의 신뢰 지수가 임계치 이하로 떨어졌습니다. 지금 이 환자는 병원을 떠나려 하고 있습니다.');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER ENGINE
+// ═══════════════════════════════════════════════════
+function $(){return document.getElementById('app')}
+function render(){$().innerHTML=PAGES[S.phase]?.()??'';afterRender();}
+function afterRender(){
+  if(S.phase==='simulate'){
+    // animate trust fill
+    requestAnimationFrame(()=>{
+      const fill=document.getElementById('trust-fill');
+      if(fill){fill.style.width=S.trustHP+'%';fill.style.background=trustColor(S.trustHP);}
+      const lbl=document.getElementById('trust-label');
+      if(lbl){lbl.textContent=trustLabel(S.trustHP);lbl.style.color=trustColor(S.trustHP);}
+    });
+    scroll();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  PAGES
+// ═══════════════════════════════════════════════════
+const PAGES={
+
+intro(){return`<div class="phase" style="position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden">
+  <div class="orb" style="width:520px;height:520px;background:#a855f7;top:-170px;left:-170px"></div>
+  <div class="orb" style="width:420px;height:420px;background:#06b6d4;bottom:-130px;right:-130px"></div>
+  <div class="orb" style="width:260px;height:260px;background:#f5a623;top:46%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div class="wrap" style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center">
+    <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:100px;margin-bottom:28px">
+      <span style="font-size:9px;font-weight:900;letter-spacing:.3em;color:var(--gold)">환자경험카드 × ESOEO v2</span>
+    </div>
+    <h1 class="serif" style="font-size:clamp(36px,7vw,70px);line-height:1.08;margin-bottom:18px">실전 상담<br><span style="color:var(--gold)">시뮬레이터</span></h1>
+    <p style="font-size:14px;color:var(--dim);line-height:1.9;max-width:480px;margin-bottom:32px">48장 카드에서 뽑힌 조합이 오늘의 환자를 만듭니다.<br><strong style="color:var(--txt)">신뢰 지수</strong>가 0에 수렴하면 환자가 떠납니다.<br>도전 모드에선 돌발 상황이 기다립니다.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px">
+      ${Object.entries(CTYPE).map(([k,v])=>`<span class="tag" style="background:${v.bg};color:${v.c};border:1px solid ${v.c}33">${v.label} <span style="opacity:.5">${DB[k].length}</span></span>`).join('')}
+    </div>
+    <!-- Mode selector -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:36px">
+      <button class="btn btn-gold btn-lg" onclick="S.mode='normal';goPhase('draw')">일반 모드 시작</button>
+      <button class="btn btn-danger btn-lg" onclick="S.mode='challenge';goPhase('draw')">⚡ 도전 모드 시작</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:0">
+      ${STEPS.map((s,i)=>`<div style="text-align:center">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid ${s.c}33;color:${s.c};display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:17px;margin:0 auto 5px">${s.lbl}</div>
+          <div style="font-size:8px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase">${s.ko}</div>
+        </div>${i<STEPS.length-1?`<div style="width:22px;height:2px;background:rgba(255,255,255,.07);margin-bottom:18px"></div>`:''}`).join('')}
+    </div>
+    ${S.mode==='challenge'?`<div style="margin-top:20px;padding:10px 18px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;font-size:11px;color:#fca5a5;font-weight:600">⚡ 도전 모드 — 3번째 단계에서 돌발 상황이 발생합니다</div>`:''}
+  </div>
+</div>`},
+
+draw(){
+  const {persona,cards,flipped}=S;
+  const types=Object.keys(DB);
+  const allDrawn=types.every(t=>cards[t]);
+  return`<div class="phase wrap" style="padding:60px 20px">
+  <div style="text-align:center;margin-bottom:40px">
+    <div style="margin-bottom:8px;display:flex;justify-content:center;gap:8px;align-items:center">
+      <h2 class="serif" style="font-size:34px">카드 <span style="color:var(--gold)">뽑기</span></h2>
+      ${S.mode==='challenge'?`<span class="tag" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">⚡ 도전</span>`:''}
+    </div>
+    <p style="color:var(--muted);font-size:13px">각 타입 1장씩 뽑아 오늘의 환자를 구성합니다</p>
+  </div>
+  ${!persona?`
+  <div style="margin-bottom:44px">
+    <div style="font-size:10px;font-weight:900;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;text-align:center">① 환자 페르소나 선택</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+      ${PERSONAS.map(p=>`<button class="persona-btn" onclick="pickPersona('${p.id}')">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+          <span style="font-size:26px">${p.av}</span>
+          <div>
+            <div style="font-weight:700;font-size:13px">${p.name} <span style="font-size:11px;color:var(--muted)">${p.age}</span></div>
+            <div style="font-size:10px;font-weight:700;color:var(--gold)">${p.type}</div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--dim);line-height:1.6">${p.bg}</p>
+        ${S.mode==='challenge'?`<div style="margin-top:8px;padding:7px 9px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.15);border-radius:8px;font-size:10px;color:#fca5a5">⚡ ${p.challenge.slice(0,40)}...</div>`:''}
+      </button>`).join('')}
+    </div>
+  </div>`:`
+  <div style="margin-bottom:24px;padding:14px 18px;background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);border-radius:14px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:26px">${persona.av}</span>
+    <div style="flex:1">
+      <div style="font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:2px">선택된 페르소나</div>
+      <div style="font-weight:700;font-size:14px">${persona.name} · ${persona.age} · ${persona.type}</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="S.persona=null;render()">변경</button>
+  </div>
+
+  <div style="margin-bottom:40px">
+    <div style="font-size:10px;font-weight:900;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin-bottom:20px;text-align:center">② 카드 덱에서 뽑기</div>
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      ${types.map(type=>{
+        const info=CTYPE[type],card=cards[type],fl=flipped[type];
+        return`<div style="text-align:center">
+          <div style="font-size:9px;font-weight:900;letter-spacing:.2em;color:${info.c};text-transform:uppercase;margin-bottom:8px">${info.label}</div>
+          <div class="deck-wrap" onclick="drawCard('${type}')">
+            <div class="deck-inner${fl&&card?' flipped':''}" id="di-${type}">
+              <div class="deck-face deck-back">
+                <div style="font-size:26px;opacity:.2">🃏</div>
+                <div style="font-size:8px;font-weight:700;letter-spacing:.2em;opacity:.2;text-transform:uppercase">${info.label}</div>
+                ${!card?`<div style="font-size:9px;color:var(--muted);margin-top:5px">탭하여 뽑기</div>`:''}
+              </div>
+              ${card?`<div class="deck-face deck-front" style="background:${info.bg};border-color:${info.c}22">
+                <span class="tag" style="background:${info.bg};color:${info.c};border:1px solid ${info.c}33">${info.label}</span>
+                <div style="font-size:30px;line-height:1">${card.icon}</div>
+                <div style="font-size:12px;font-weight:700;text-align:center">${card.title}</div>
+                <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5">${card.desc}</div>
+                <div class="mono" style="font-size:8px;color:${info.c};opacity:.4">${card.id}</div>
+              </div>`:'<div class="deck-face deck-front"></div>'}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="drawAll()">🔀 전체 랜덤 뽑기</button>
+      <button class="btn btn-ghost" onclick="resetCards()">↺ 다시 뽑기</button>
+    </div>
+  </div>
+  ${allDrawn?`<div style="text-align:center">
+    <button class="btn btn-gold btn-lg" onclick="toScenario()">이 조합으로 시나리오 생성 →</button>
+  </div>`:`<p style="text-align:center;color:var(--muted);font-size:12px">${types.filter(t=>cards[t]).length}/4 완료 — 4가지 카드를 모두 뽑아주세요</p>`}
+  `}
+</div>`},
+
+scenario(){
+  const {persona,cards,scenario,loading}=S;
+  return`<div class="phase wrap" style="padding:60px 20px;max-width:680px">
+  <div style="text-align:center;margin-bottom:36px">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:10px">SCENARIO BRIEF</div>
+    <h2 class="serif" style="font-size:32px">오늘의 환자</h2>
+  </div>
+  <div class="panel" style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">
+    <div style="font-size:42px;flex-shrink:0">${persona.av}</div>
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
+        <span style="font-size:18px;font-weight:900">${persona.name}</span>
+        <span style="font-size:11px;color:var(--muted)">${persona.age} · ${persona.gender}</span>
+        <span class="tag" style="background:var(--gold-bg);color:var(--gold);border:1px solid rgba(245,166,35,.2)">${persona.type}</span>
+        ${S.mode==='challenge'?`<span class="tag" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)">⚡ 도전</span>`:''}
+      </div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7">${persona.bg}</p>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px">
+    ${Object.entries(cards).map(([type,card])=>{const i=CTYPE[type];return`
+    <div style="background:${i.bg};border:1px solid ${i.c}22;border-radius:13px;padding:11px;display:flex;gap:8px;align-items:center">
+      <span style="font-size:19px">${card.icon}</span>
+      <div><div style="font-size:8px;font-weight:900;color:${i.c};letter-spacing:.2em;text-transform:uppercase">${i.label}</div><div style="font-size:12px;font-weight:700">${card.title}</div></div>
+    </div>`}).join('')}
+  </div>
+  ${loading?`<div class="panel" style="text-align:center;padding:44px">
+    <div class="dots" style="margin-bottom:12px"><span></span><span></span><span></span></div>
+    <p style="color:var(--muted);font-size:12px">AI가 시나리오를 생성하는 중...</p>
+  </div>`
+  :scenario?`
+  <div class="panel" style="margin-bottom:14px">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:10px">상담 상황</div>
+    <p style="font-size:13px;line-height:1.85;color:#c8d4e8;margin-bottom:14px">${scenario.scenario}</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+      <div style="background:var(--sf2);border-radius:11px;padding:11px">
+        <div style="font-size:8px;font-weight:900;letter-spacing:.15em;color:#f97316;text-transform:uppercase;margin-bottom:5px">핵심 긴장</div>
+        <p style="font-size:11px;color:var(--dim);line-height:1.6">${scenario.tension}</p>
+      </div>
+      <div style="background:var(--sf2);border-radius:11px;padding:11px">
+        <div style="font-size:8px;font-weight:900;letter-spacing:.15em;color:#6366f1;text-transform:uppercase;margin-bottom:5px">숨겨진 필요</div>
+        <p style="font-size:11px;color:var(--dim);line-height:1.6">${scenario.hidden_need}</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-bottom:26px">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:10px">환자의 첫 마디</div>
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="font-size:22px">${persona.av}</div>
+      <div class="bubble" style="background:var(--sf2);border:1px solid var(--border)">"${scenario.patient_opening}"</div>
+    </div>
+  </div>
+  <div style="text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="btn btn-gold btn-lg" onclick="startSim()">ESOEO 상담 시작 →</button>
+    <button class="btn btn-ghost" onclick="S.phase='draw';S.scenario=null;render()">← 다시 뽑기</button>
+  </div>`:''}
+</div>`},
+
+simulate(){
+  const {step,convo,opts,hint,loading,waiting,persona}=S;
+  const st=STEPS[step]||STEPS[0];
+  return`<div class="phase" style="min-height:100vh;display:flex;flex-direction:column">
+  <!-- STICKY HEADER -->
+  <div style="background:rgba(7,9,26,.97);border-bottom:1px solid var(--border);padding:12px 20px;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)">
+    <div style="max-width:720px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="font-size:18px">${persona.av}</div>
+        <div style="flex:1">
+          <div style="font-size:11px;font-weight:700">${persona.name}</div>
+          <div style="font-size:9px;color:var(--muted)">${persona.type}${S.mode==='challenge'?' · ⚡ 도전':''}</div>
+        </div>
+        <!-- TRUST METER -->
+        <div style="min-width:90px;text-align:right">
+          <div id="trust-label" style="font-size:8px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px">${trustLabel(S.trustHP)}</div>
+          <div id="trust-wrap" style="height:5px;background:var(--sf3);border-radius:3px;overflow:hidden;width:80px;margin-left:auto">
+            <div id="trust-fill" style="height:100%;width:${S.trustHP}%;background:${trustColor(S.trustHP)};border-radius:3px;transition:width .6s ease,background .4s"></div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);min-width:30px;text-align:right">${step+1}/${STEPS.length}</div>
+      </div>
+      <!-- ESOEO BAR -->
+      <div class="e-bar">
+        ${STEPS.map((s,i)=>{
+          const cl=i<step?'done':i===step?'active':'';
+          return`<div class="e-step ${cl}" style="--sc:${s.c}">
+            <div class="e-circle">${i<step?'✓':s.lbl}</div>
+            <div class="e-label">${s.ko}</div>
+          </div>${i<STEPS.length-1?`<div class="e-line${i<step?' done':''}" style="${i<step?'--lc:'+STEPS[i].c:''}"></div>`:''}`}).join('')}
+      </div>
+    </div>
+  </div>
+  <!-- BODY -->
+  <div style="max-width:720px;margin:0 auto;width:100%;padding:20px 20px;flex:1;display:flex;flex-direction:column">
+    <!-- Step context pill -->
+    <div style="background:${st.c}10;border:1px solid ${st.c}22;border-radius:13px;padding:11px 15px;margin-bottom:18px;display:flex;gap:10px;align-items:center">
+      <div style="width:28px;height:28px;border-radius:50%;background:${st.c}18;color:${st.c};display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:15px;flex-shrink:0">${st.lbl}</div>
+      <div>
+        <div style="font-size:10px;font-weight:900;color:${st.c};letter-spacing:.15em;text-transform:uppercase">${st.full} — ${st.ko}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:1px">${st.desc}</div>
+      </div>
+    </div>
+    <!-- CHAT AREA -->
+    <div class="chat-area" id="chatArea" style="background:var(--sf);border:1px solid var(--border);border-radius:18px;margin-bottom:16px;flex:1">
+      ${convo.map(m=>{
+        if(m.r==='system') return`<div class="msg system"><div class="bubble">${m.t}</div></div>`;
+        return`<div class="msg ${m.r}">
+          <div class="msg-av">${m.r==='patient'?persona.av:'👩‍⚕️'}</div>
+          <div>
+            ${m.lbl?`<div style="font-size:8px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:3px;${m.r==='staff'?'text-align:right':''}">${m.lbl}</div>`:''}
+            <div class="bubble">${m.t}</div>
+            ${m.fb?`<div style="font-size:11px;margin-top:5px;line-height:1.55;${m.r==='staff'?'text-align:right':''}">
+              ${m.score!==undefined?`<span style="color:${m.sc};font-weight:900;margin-right:5px">${m.score}점</span>`:''}
+              <span style="color:${m.sc||'var(--dim)'};">${m.fb}</span>
+              ${m.sub?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;min-width:180px">
+                ${SUB_SCORES.map(k=>`<div class="sub-bar-row">
+                  <div style="font-size:9px;color:var(--muted);min-width:56px">${SUB_LABELS[k]}</div>
+                  <div class="sub-bar-track"><div class="sub-bar-fill" style="width:${m.sub[k]}%;background:${m.sc||'var(--gold)'}"></div></div>
+                  <div style="font-size:9px;font-weight:700;color:${m.sc};min-width:22px;text-align:right">${m.sub[k]}</div>
+                </div>`).join('')}
+              </div>`:''}
+            </div>`:''}
+          </div>
+        </div>`}).join('')}
+      ${loading?`<div class="msg patient">
+        <div class="msg-av">${persona.av}</div>
+        <div class="bubble" style="background:var(--sf2);border:1px solid var(--border)">
+          <div class="dots"><span></span><span></span><span></span></div>
+        </div>
+      </div>`:''}
+    </div>
+    <!-- OPTIONS / NEXT -->
+    ${!loading&&opts.length>0&&!waiting?`
+    <div>
+      ${hint?`<div style="display:flex;gap:7px;align-items:flex-start;padding:9px 13px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);border-radius:10px;margin-bottom:11px">
+        <span style="font-size:12px;flex-shrink:0">💡</span>
+        <span style="font-size:11px;color:#a5b4fc;line-height:1.6">${hint}</span>
+      </div>`:''}
+      <div style="font-size:9px;font-weight:900;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:9px">최선의 응답을 선택하세요</div>
+      <div style="display:flex;flex-direction:column;gap:7px" id="optList">
+        ${opts.map((o,i)=>`<button class="opt-btn" id="ob-${i}" onclick="pickOpt(${i})"><span style="font-size:9px;font-weight:900;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-right:8px">${o.id}</span>${o.text}</button>`).join('')}
+      </div>
+    </div>`
+    :!loading&&waiting?`<div style="text-align:center;padding:14px 0">
+      <button class="btn btn-gold" onclick="nextStep()">${step<STEPS.length-1?'다음 단계 →':'최종 평가 →'}</button>
+    </div>`:!loading?'':''}
+  </div>
+</div>`},
+
+result(){
+  const {final,scores,persona}=S;
+  if(!final) return`<div style="text-align:center;padding:120px 20px">
+    <div class="dots" style="justify-content:center;display:flex"><span></span><span></span><span></span></div>
+    <p style="color:var(--muted);margin-top:14px;font-size:13px">최종 평가 생성 중...</p>
+  </div>`;
+  const gc={S:'#f59e0b',A:'#10b981',B:'#6366f1',C:'#f97316',D:'#ef4444',F:'#ef4444'};
+  const gc2=gc[final.grade]||'#64748b';
+  const gradeDesc={S:'완벽한 상담',A:'우수한 상담',B:'양호한 상담',C:'보통 수준',D:'개선 필요',F:'상담 실패'};
+  return`<div class="phase wrap" style="padding:60px 20px;max-width:680px">
+  <div style="text-align:center;margin-bottom:40px">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;margin-bottom:18px">FINAL EVALUATION</div>
+    ${S.terminated?`<div style="margin-bottom:16px;padding:10px 18px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;font-size:12px;color:#fca5a5;font-weight:700">⚠ 환자가 상담 도중 이탈했습니다</div>`:''}
+    <div style="width:108px;height:108px;border-radius:50%;border:3px solid ${gc2};display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 0 32px ${gc2}33">
+      <div class="serif" style="font-size:44px;line-height:1;color:${gc2}">${final.grade}</div>
+      <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase">${gradeDesc[final.grade]||''}</div>
+    </div>
+    <div style="font-size:28px;font-weight:900;color:${gc2};margin-bottom:6px">${final.total_score}<span style="font-size:14px;color:var(--muted);font-weight:500"> / 100</span></div>
+    <p style="font-size:13px;color:var(--dim);line-height:1.85;max-width:460px;margin:0 auto">${final.summary}</p>
+  </div>
+  <!-- SUB SCORES -->
+  <div class="panel" style="margin-bottom:14px">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:14px">세부 역량 점수</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${SUB_SCORES.map(k=>{
+        const v=final.sub_scores?.[k]||final.total_score;
+        const c=v>=80?'#10b981':v>=60?'#f59e0b':'#ef4444';
+        return`<div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:11px;font-weight:700">${SUB_LABELS[k]}</span>
+            <span style="font-size:13px;font-weight:900;color:${c}">${v}</span>
+          </div>
+          <div class="score-bar"><div class="score-fill" style="width:${v}%;background:${c}"></div></div>
+        </div>`}).join('')}
+    </div>
+  </div>
+  <!-- STEP SCORES -->
+  <div class="panel" style="margin-bottom:14px">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:14px">단계별 점수</div>
+    ${scores.map((s,i)=>{
+      const st=STEPS[i]||{c:'#666',lbl:'?',ko:'?'};
+      return`<div style="margin-bottom:11px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <div style="width:20px;height:20px;border-radius:50%;background:${st.c}18;color:${st.c};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900">${st.lbl}</div>
+            <span style="font-size:12px;font-weight:700">${st.ko}</span>
+          </div>
+          <span style="font-size:13px;font-weight:900;color:${st.c}">${s.score}</span>
+        </div>
+        <div class="score-bar"><div class="score-fill" style="width:${s.score}%;background:${st.c}"></div></div>
+      </div>`}).join('')}
+  </div>
+  <!-- STRENGTHS / IMPROVEMENTS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px">
+    <div class="panel" style="border-color:rgba(16,185,129,.18)">
+      <div style="font-size:8px;font-weight:900;letter-spacing:.18em;color:#10b981;text-transform:uppercase;margin-bottom:10px">✓ 잘한 점</div>
+      ${(final.strengths||[]).map(s=>`<div style="display:flex;gap:6px;margin-bottom:7px;align-items:flex-start"><div style="color:#10b981;margin-top:1px;flex-shrink:0;font-size:11px">▸</div><p style="font-size:11px;color:var(--dim);line-height:1.6">${s}</p></div>`).join('')}
+    </div>
+    <div class="panel" style="border-color:rgba(249,115,22,.18)">
+      <div style="font-size:8px;font-weight:900;letter-spacing:.18em;color:#f97316;text-transform:uppercase;margin-bottom:10px">△ 개선 포인트</div>
+      ${(final.improvements||[]).map(s=>`<div style="display:flex;gap:6px;margin-bottom:7px;align-items:flex-start"><div style="color:#f97316;margin-top:1px;flex-shrink:0;font-size:11px">▸</div><p style="font-size:11px;color:var(--dim);line-height:1.6">${s}</p></div>`).join('')}
+    </div>
+  </div>
+  <!-- ARCHITECT COMMENT -->
+  <div style="background:rgba(7,9,26,.9);border:1px solid rgba(245,166,35,.2);border-radius:20px;padding:22px;margin-bottom:26px">
+    <div style="font-size:8px;font-weight:900;letter-spacing:.28em;color:var(--gold);text-transform:uppercase;margin-bottom:10px">ARCHITECT'S COMMENT</div>
+    <p style="font-size:14px;font-style:italic;color:var(--txt);line-height:1.85">"${final.architect_comment}"</p>
+  </div>
+  <div style="text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <button class="btn btn-gold btn-lg" onclick="restartFull()">새 시뮬레이션</button>
+    <button class="btn btn-ghost" onclick="restartSame()">같은 카드로 재도전</button>
+  </div>
+</div>`}
+};
+
+// ═══════════════════════════════════════════════════
+//  HANDLERS
+// ═══════════════════════════════════════════════════
+function goPhase(p){S.phase=p;render()}
+function pickPersona(id){S.persona=PERSONAS.find(p=>p.id===id);render()}
+function drawCard(type){
+  const c=DB[type];
+  S.cards[type]=c[Math.floor(Math.random()*c.length)];
+  S.flipped[type]=false;
+  render();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    S.flipped[type]=true;
+    document.getElementById('di-'+type)?.classList.add('flipped');
+  }));
+}
+function drawAll(){
+  Object.keys(DB).forEach(t=>{S.cards[t]=null;S.flipped[t]=false});
+  render();
+  Object.keys(DB).forEach((t,i)=>setTimeout(()=>drawCard(t),i*220));
+}
+function resetCards(){
+  S.cards={VALUES:null,EMOTION:null,MOT:null,ACTION:null};
+  S.flipped={VALUES:false,EMOTION:false,MOT:false,ACTION:false};
+  render();
+}
+
+async function toScenario(){
+  S.phase='scenario';S.loading=true;S.scenario=null;render();
+  try{
+    S.scenario=await withRetry(genScenario,3,1200);
+    // init trust HP from scenario
+    S.trustHP=S.scenario.trust_initial||75;
+  }catch(e){
+    console.error(e);toast('시나리오 생성 오류 — 카드를 다시 뽑아 주세요');
+  }
+  S.loading=false;render();
+}
+
+async function startSim(){
+  S.phase='simulate';S.step=0;S.convo=[];S.scores=[];S.opts=[];
+  S.waiting=false;S.hint='';S.challenged=false;S.terminated=false;
+  S.convo.push({r:'patient',t:S.scenario.patient_opening});
+  render();
+  await loadOpts();
+}
+
+async function loadOpts(){
+  S.loading=true;S.opts=[];S.waiting=false;render();scroll();
+  try{
+    const d=await withRetry(()=>genOpts(S.step),3,900);
+    // if challenge mode and step 2, mark challenged
+    if(S.mode==='challenge'&&S.step===2&&!S.challenged){
+      S.challenged=true;
+      if(d.patient_prompt){
+        // inject challenge banner before patient's message
+        S.convo.push({r:'system',t:`⚡ 돌발 상황 — ${S.persona.challenge}`});
+      }
+    }
+    if(d.patient_prompt&&S.step>0) S.convo.push({r:'patient',t:d.patient_prompt});
+    S.opts=d.options;S.hint=d.hint||'';
+  }catch(e){
+    console.error(e);
+    toast('옵션 생성 오류 — 재시도 중...');
+  }
+  S.loading=false;render();scroll();
+}
+
+async function pickOpt(idx){
+  const opt=S.opts[idx];
+  // visual reveal
+  document.querySelectorAll('.opt-btn').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===idx){
+      b.className=`opt-btn reveal-${opt.quality}`;
+      const badge=document.createElement('span');
+      badge.className='opt-badge';
+      badge.style.background=opt.quality==='best'?'rgba(16,185,129,.2)':opt.quality==='ok'?'rgba(245,158,11,.2)':'rgba(239,68,68,.2)';
+      badge.style.color=opt.quality==='best'?'#10b981':opt.quality==='ok'?'#f59e0b':'#ef4444';
+      badge.textContent=opt.quality==='best'?'최선':'ok'===opt.quality?'보통':'미흡';
+      b.appendChild(badge);
+    }
+  });
+  // short delay so user sees reveal
+  await new Promise(r=>setTimeout(r,700));
+
+  S.convo.push({r:'staff',t:opt.text,lbl:`${STEPS[S.step].full} · ${STEPS[S.step].ko}`});
+  S.opts=[];S.loading=true;render();scroll();
+
+  try{
+    const rx=await withRetry(()=>genReaction(STEPS[S.step],opt.text,opt.quality),2,800);
+    applyTrustDelta(rx.trust_delta||0);
+    const sc2=rx.score>=80?'#10b981':rx.score>=60?'#f59e0b':'#ef4444';
+    S.convo.push({r:'patient',t:rx.reaction,fb:rx.feedback,score:rx.score,sc:sc2,sub:rx.sub});
+    S.scores.push({step:STEPS[S.step].key,score:rx.score,sub:rx.sub,feedback:rx.feedback});
+    // Early terminate condition: trust gone
+    if(S.trustHP<=15&&!S.terminated){
+      showTerminateOverlay('환자가 자리를 떠났습니다','상담 도중 신뢰 지수가 회복 불가 수준으로 하락했습니다. 환자는 "다음에 다시 생각해 볼게요"라는 말을 남기고 상담실을 나갔습니다.');
+    }
+  }catch(e){
+    console.error(e);
+    const fb={best:'공감 접근이 효과적이었습니다.',ok:'무난한 접근이었습니다.',poor:'감정을 먼저 수용하는 접근이 필요했습니다.'}[opt.quality];
+    const sc={best:88,ok:68,poor:38}[opt.quality];
+    S.convo.push({r:'patient',t:'(반응 생성 오류 — 계속 진행합니다)',fb,score:sc,sc:'#f59e0b',sub:null});
+    S.scores.push({step:STEPS[S.step].key,score:sc,sub:null,feedback:fb});
+    toast('반응 생성 오류 — 계속 진행합니다');
+  }
+  S.loading=false;S.waiting=true;render();scroll();
+}
+
+async function nextStep(){
+  if(S.step>=STEPS.length-1||S.terminated){
+    await goToResult();return;
+  }
+  S.step++;S.waiting=false;render();
+  await loadOpts();
+}
+
+async function goToResult(){
+  S.phase='result';S.final=null;render();
+  try{S.final=await withRetry(genFinal,2,1200);}
+  catch(e){console.error(e);toast('평가 생성 오류');}
+  render();
+}
+
+// Early terminate overlay
+function showTerminateOverlay(title,msg){
+  document.getElementById('term-title').textContent=title;
+  document.getElementById('term-msg').textContent=msg;
+  document.getElementById('terminate-overlay').classList.add('show');
+}
+function closeOverlay(){document.getElementById('terminate-overlay').classList.remove('show');}
+async function doTerminate(){
+  S.terminated=true;
+  document.getElementById('terminate-overlay').classList.remove('show');
+  // finish loading and go to result
+  S.loading=false;S.waiting=false;S.opts=[];
+  await goToResult();
+}
+
+function restartFull(){
+  Object.assign(S,{phase:'intro',persona:null,mode:'normal',
+    cards:{VALUES:null,EMOTION:null,MOT:null,ACTION:null},
+    flipped:{VALUES:false,EMOTION:false,MOT:false,ACTION:false},
+    scenario:null,step:0,convo:[],opts:[],hint:'',scores:[],
+    trustHP:100,waiting:false,loading:false,final:null,challenged:false,terminated:false});
+  render();
+}
+
+function restartSame(){
+  const savedMode=S.mode;
+  Object.assign(S,{phase:'scenario',loading:true,scenario:null,step:0,
+    convo:[],opts:[],hint:'',scores:[],trustHP:100,
+    waiting:false,final:null,challenged:false,terminated:false,mode:savedMode});
+  render();
+  withRetry(genScenario,3,1000)
+    .then(sc=>{S.scenario=sc;S.trustHP=sc.trust_initial||75;S.loading=false;render();})
+    .catch(e=>{console.error(e);S.loading=false;render();});
+}
+
+function scroll(){setTimeout(()=>{const c=document.getElementById('chatArea');if(c)c.scrollTop=c.scrollHeight;},80);}
+function toast(msg,dur=3800){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+window.onload=()=>render();
+</script>
+</body>
+</html>
